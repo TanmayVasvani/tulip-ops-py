@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "_macros.html" import stage_badge %}
+{% block content %}
+
+<section class="card">
+  <div class="card-head inverse">{{ t('packedToday') }} — {{ date_str }}</div>
+  <div class="hero-count">
+    <span class="bignum n">{{ fmt(stats.packed_today) }}</span>
+    <span class="u">{{ t('pieces') }}</span>
+  </div>
+  <div class="stage-grid">
+    {% for s in STAGES %}
+    <div>
+      {{ stage_badge(s, t) }}
+      <span class="bignum" style="font-size:1.25rem">{{ fmt(stats.stage_out[s]) }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="stat-grid">
+  <a class="card stat" href="/production">
+    <div class="bignum n">{{ stats.active_batches }}</div>
+    <div class="l">{{ t('activeBatches') }}</div>
+  </a>
+  <a class="card stat {{ 'alert' if stats.qc_fail_pct > 3 else '' }}" href="/qc">
+    <div class="bignum n">{{ stats.qc_fail_pct }}%</div>
+    <div class="l">{{ t('qcFailRate') }}</div>
+  </a>
+  <a class="card stat {{ 'alert' if stats.low_stock > 0 else '' }}" href="/inventory">
+    <div class="bignum n">{{ stats.low_stock }}</div>
+    <div class="l">{{ t('lowStockItems') }}</div>
+  </a>
+  <a class="card stat" href="/dispatch">
+    <div class="bignum n">{{ stats.pending_orders }}</div>
+    <div class="l">{{ t('pendingOrders') }}</div>
+  </a>
+</section>
+
+<a class="btn green" href="{{ wa_href }}" target="_blank" rel="noopener noreferrer">{{ t('shareOnWhatsApp') }}</a>
+
+{% if batches %}
+<section class="card">
+  <div class="card-head">{{ t('activeBatches') }}</div>
+  <ul class="rows">
+    {% for b in batches %}
+    <li>
+      <a class="row-flex" href="/production">
+        <div>
+          <div class="row-title">{{ b.batch_no }}</div>
+          <div class="row-sub">{{ pick(b.product_en, b.product_gu) }} · {{ t('target') }} {{ fmt(b.target_qty) }}</div>
+        </div>
+        {{ stage_badge(b.current_stage, t) }}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if low %}
+<section class="card alert">
+  <div class="card-head warn">⚠️ {{ t('lowStockItems') }}</div>
+  <ul class="rows">
+    {% for m in low %}
+    <li class="row-flex">
+      <span class="row-title">{{ pick(m.name_en, m.name_gu) }}</span>
+      <span class="bignum" style="font-size:1.1rem">{{ '%g'|format(m.current_qty) }} <span style="font-size:0.85rem;color:var(--mut)">{{ m.unit }}</span></span>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% endblock %}

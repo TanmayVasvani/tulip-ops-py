@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <div class="card-head">{{ t('reports') }}</div>
+  <form method="get" action="/reports" class="form-grid">
+    <div>
+      <label for="from">{{ t('from') }}</label>
+      <input id="from" name="from" type="date" class="field" value="{{ start }}">
+    </div>
+    <div>
+      <label for="to">{{ t('to') }}</label>
+      <input id="to" name="to" type="date" class="field" value="{{ end }}">
+    </div>
+    <div class="full"><button class="btn primary">{{ t('save') }}</button></div>
+  </form>
+  <div class="form-grid">
+    <a class="btn" href="/reports/production.csv?from={{ start }}&to={{ end }}">{{ t('downloadCsv') }} · {{ t('production') }}</a>
+    <a class="btn" href="/reports/qc.csv?from={{ start }}&to={{ end }}">{{ t('downloadCsv') }} · {{ t('qc') }}</a>
+    <a class="btn" href="/reports/stock.csv?from={{ start }}&to={{ end }}">{{ t('downloadCsv') }} · {{ t('inventory') }}</a>
+    <a class="btn" href="/reports/dispatch.csv?from={{ start }}&to={{ end }}">{{ t('downloadCsv') }} · {{ t('dispatch') }}</a>
+    <a class="btn green" href="/reports.pdf?from={{ start }}&to={{ end }}">{{ t('downloadPdf') }}</a>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-head">{{ t('production') }}</div>
+  <ul class="rows">
+    {% for r in production %}
+    <li class="row-flex"><span>{{ r.day }} · {{ t(r.stage) }}</span><span class="bignum">{{ fmt(r.qty_ok) }} / {{ fmt(r.qty_scrap) }}</span></li>
+    {% else %}<li class="empty">—</li>{% endfor %}
+  </ul>
+</section>
+
+<section class="card">
+  <div class="card-head">{{ t('qc') }}</div>
+  <ul class="rows">
+    {% for r in qc %}
+    <li class="row-flex"><span>{{ r.day }} · {{ t(r.stage) }} · {{ t(r.action) }}</span><span>{{ r.failed }}/{{ r.samples }}</span></li>
+    {% else %}<li class="empty">—</li>{% endfor %}
+  </ul>
+</section>
+
+<section class="card">
+  <div class="card-head">{{ t('dispatch') }}</div>
+  <ul class="rows">
+    {% for r in dispatch %}
+    <li class="row-flex"><span>{{ r.day }} · {{ r.order_no }} · {{ r.sku }}</span><span>{{ fmt(r.qty) }}{% if r.invoice_no %} · {{ r.invoice_no }}{% endif %}</span></li>
+    {% else %}<li class="empty">—</li>{% endfor %}
+  </ul>
+</section>
+{% endblock %}

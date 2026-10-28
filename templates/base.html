@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>{{ t('appName') }}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="shell">
+      <div class="brand"><span class="dot"></span>{{ t('appName') }}</div>
+      <form class="langform" method="post" action="/lang" aria-label="{{ t('language') }}">
+        <input type="hidden" name="back" value="{{ path }}">
+        <button name="lang" value="gu" class="{{ 'on' if lang == 'gu' else '' }}">ગુજરાતી</button>
+        <button name="lang" value="en" class="{{ 'on' if lang == 'en' else '' }}">EN</button>
+      </form>
+    </div>
+  </header>
+
+  <main>{% block content %}{% endblock %}</main>
+
+  {% set tabs = [
+    ('/', 'dashboard', 'home'),
+    ('/production', 'production', 'prod'),
+    ('/qc', 'qc', 'qc'),
+    ('/inventory', 'inventory', 'inv'),
+    ('/dispatch', 'dispatch', 'truck'),
+  ] %}
+  <nav class="tabs">
+    <div class="inner">
+      {% for href, key, icon in tabs %}
+      <a href="{{ href }}" class="{{ 'on' if path == href else '' }}">
+        <span class="ico">
+          {% if icon == 'home' %}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
+          {% elif icon == 'prod' %}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"/><path d="M4 20V9l6 4V9l6 4V6h4v14"/></svg>
+          {% elif icon == 'qc' %}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>
+          {% elif icon == 'inv' %}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8l8-5 8 5v8l-8 5-8-5V8z"/><path d="M4 8l8 5 8-5"/><path d="M12 13v8"/></svg>
+          {% else %}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 7h13v9H1z"/><path d="M14 10h4l4 3v3h-8"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+          {% endif %}
+        </span>
+        <span>{{ t(key) }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </nav>
+</body>
+</html>

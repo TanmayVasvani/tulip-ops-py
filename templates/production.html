@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% from "_macros.html" import stage_badge %}
+{% block content %}
+
+<section class="card">
+  <div class="card-head">{{ t('newBatch') }}</div>
+  <form method="post" action="/batch/new" class="form-grid">
+    <div class="full">
+      <label for="nb-product">{{ t('product') }}</label>
+      <select id="nb-product" name="productId" required class="field">
+        {% for p in products %}
+        <option value="{{ p.id }}">{{ p.sku }} — {{ pick(p.name_en, p.name_gu) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="full">
+      <label for="nb-qty">{{ t('targetQty') }}</label>
+      <input id="nb-qty" name="targetQty" type="number" inputmode="numeric" min="1" required class="field" placeholder="5000">
+    </div>
+    <div class="full">
+      <button class="btn primary">{{ t('startBatch') }}</button>
+    </div>
+  </form>
+</section>
+
+{% if not batches %}
+<p class="card empty">{{ t('noActiveBatches') }}</p>
+{% endif %}
+
+{% for b in batches %}
+{% set stage = b.current_stage %}
+{% set idx = STAGES.index(stage) %}
+<section class="card">
+  <div class="batch-head">
+    <div>
+      <div class="row-title" style="font-size:1.1rem">{{ b.batch_no }}</div>
+      <div class="row-sub">{{ pick(b.product_en, b.product_gu) }} · {{ t('target') }} {{ fmt(b.target_qty) }} {{ t('pieces') }}</div>
+    </div>
+    {{ stage_badge(stage, t) }}
+  </div>
+
+  <div class="progress-row">
+    <span class="l">{{ t('stageProgress') }}</span>
+    <span class="bignum" style="font-size:1.4rem">{{ fmt(b.done_qty) }}<span style="font-size:0.85rem;color:var(--mut)"> / {{ fmt(b.target_qty) }}</span></span>
+  </div>
+
+  <form method="post" action="/batch/log" class="form-grid">
+    <input type="hidden" name="batchId" value="{{ b.id }}">
+    <div class="full">
+      <label for="m-{{ b.id }}">{{ t('machine') }}</label>
+      <select id="m-{{ b.id }}" name="machineId" class="field">
+        {% for m in machines if m.stage == stage %}
+        <option value="{{ m.id }}">{{ m.code }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="w-{{ b.id }}">{{ t('worker') }}</label>
+      <select id="w-{{ b.id }}" name="workerId" class="field">
+        {% for w in workers %}
+        <option value="{{ w.id }}">{{ w.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="s-{{ b.id }}">{{ t('shift') }}</label>
+      <select id="s-{{ b.id }}" name="shift" class="field">
+        <option value="day" {{ 'selected' if default_shift == 'day' else '' }}>{{ t('day') }}</option>
+        <option value="night" {{ 'selected' if default_shift == 'night' else '' }}>{{ t('night') }}</option>
+      </select>
+    </div>
+    <div>
+      <label for="ok-{{ b.id }}">{{ t('qtyOk') }}</label>
+      <input id="ok-{{ b.id }}" name="qtyOk" type="number" inputmode="numeric" min="0" class="field" placeholder="0">
+    </div>
+    <div>
+      <label for="sc-{{ b.id }}">{{ t('qtyScrap') }}</label>
+      <input id="sc-{{ b.id }}" name="qtyScrap" type="number" inputmode="numeric" min="0" class="field" placeholder="0">
+    </div>
+    <div class="full">
+      <button class="btn primary">{{ t('logWork') }}</button>
+    </div>
+  </form>
+
+  <form method="post" action="/batch/advance" class="sub-form">
+    <input type="hidden" name="batchId" value="{{ b.id }}">
+    <button class="btn ghost">
+      {% if idx == STAGES|length - 1 %}{{ t('finishBatch') }}{% else %}{{ t('nextStage') }} → {{ t(STAGES[idx + 1]) }}{% endif %}
+    </button>
+  </form>
+</section>
+{% endfor %}
+
+{% if done_batches %}
+<section class="card">
+  <div class="card-head">{{ t('recentlyFinished') }}</div>
+  <ul class="rows">
+    {% for b in done_batches %}
+    <li class="row-flex">
+      <div><span class="row-title">{{ b.batch_no }}</span> <span class="row-sub" style="display:inline">· {{ pick(b.product_en, b.product_gu) }}</span></div>
+      {{ stage_badge('done', t) }}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% endblock %}

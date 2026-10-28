@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="card">
+  <div class="card-head">{{ t('newQcCheck') }}</div>
+  {% if not batches %}
+  <p class="empty">{{ t('noActiveBatches') }}</p>
+  {% else %}
+  <form method="post" action="/qc/new" class="form-grid">
+    <div class="full">
+      <label for="qc-batch">{{ t('batch') }}</label>
+      <select id="qc-batch" name="batchId" required class="field">
+        {% for b in batches %}
+        <option value="{{ b.id }}">{{ b.batch_no }} · {{ pick(b.product_en, b.product_gu) }} · {{ t(b.current_stage) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="full">
+      <label for="qc-worker">{{ t('worker') }}</label>
+      <select id="qc-worker" name="workerId" class="field">
+        {% for w in workers %}
+        <option value="{{ w.id }}">{{ w.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="qc-sample">{{ t('sampleSize') }}</label>
+      <input id="qc-sample" name="sampleSize" type="number" inputmode="numeric" min="1" required class="field" placeholder="50">
+    </div>
+    <div>
+      <label for="qc-failed">{{ t('failedQty') }}</label>
+      <input id="qc-failed" name="failed" type="number" inputmode="numeric" min="0" class="field" placeholder="0">
+    </div>
+    <div class="full">
+      <label for="qc-defect">{{ t('defectType') }}</label>
+      <select id="qc-defect" name="defectType" class="field">
+        <option value="">—</option>
+        {% for dfc in DEFECTS %}
+        <option value="{{ dfc }}">{{ t('defect_' + dfc) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="full">
+      <label for="qc-note">{{ t('note') }} ({{ t('optional') }})</label>
+      <input id="qc-note" name="note" type="text" class="field">
+    </div>
+    <div class="full tri">
+      <button name="action" value="pass" class="btn green">{{ t('pass') }}</button>
+      <button name="action" value="rework" class="btn amber">{{ t('rework') }}</button>
+      <button name="action" value="reject" class="btn primary">{{ t('reject') }}</button>
+    </div>
+  </form>
+  {% endif %}
+</section>
+
+{% if checks %}
+<section class="card">
+  <div class="card-head">{{ t('recentChecks') }}</div>
+  <ul class="rows">
+    {% for c in checks %}
+    <li>
+      <div class="row-flex">
+        <span class="row-title">{{ c.batch_no }} · {{ t(c.stage) }}</span>
+        <span class="pill {{ 'green' if c.action == 'pass' else ('amber' if c.action == 'rework' else 'red') }}">{{ t(c.action) }}</span>
+      </div>
+      <div class="row-sub">
+        {{ c.failed }}/{{ c.sample_size }} {{ t('failedQty')|lower }}{% if c.defect_type %} · {{ t('defect_' + c.defect_type) }}{% endif %}{% if c.worker_name %} · {{ c.worker_name }}{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="card">
+  <div class="card-head">{{ t('newOrder') }}</div>
+  <form method="post" action="/order/new" class="form-grid">
+    <div class="full">
+      <label for="o-cust">{{ t('customer') }}</label>
+      <input id="o-cust" name="customer" type="text" required class="field">
+    </div>
+    <div>
+      <label for="o-prod">{{ t('product') }}</label>
+      <select id="o-prod" name="productId" required class="field">
+        {% for p in products %}
+        <option value="{{ p.id }}">{{ p.sku }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="o-qty">{{ t('orderQty') }}</label>
+      <input id="o-qty" name="qty" type="number" inputmode="numeric" min="1" required class="field" placeholder="10000">
+    </div>
+    <div class="full">
+      <button class="btn primary">{{ t('saveOrder') }}</button>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <div class="card-head">{{ t('openOrders') }}</div>
+  {% if not orders %}
+  <p class="empty">{{ t('noOpenOrders') }}</p>
+  {% else %}
+  <ul class="rows">
+    {% for o in orders %}
+    {% set remaining = o.qty - o.dispatched_qty %}
+    <li>
+      <div class="row-flex">
+        <div>
+          <div class="row-title">{{ o.order_no }} · {{ o.customer }}</div>
+          <div class="row-sub">{{ o.sku }} · {{ t('ordered') }} {{ fmt(o.qty) }} · {{ t('sent') }} {{ fmt(o.dispatched_qty) }} · {{ t('inStock') }} {{ fmt(o.stock_qty) }}</div>
+        </div>
+        <span class="pill {{ 'amber' if o.status == 'partial' else '' }}">{{ t('partial') if o.status == 'partial' else t('pending') }}</span>
+      </div>
+      <form method="post" action="/dispatch/new" class="form-grid" style="padding:10px 0 0">
+        <input type="hidden" name="orderId" value="{{ o.id }}">
+        <div class="full">
+          <label for="d-qty-{{ o.id }}">{{ t('dispatchQty') }}</label>
+          <input id="d-qty-{{ o.id }}" name="qty" type="number" inputmode="numeric" min="1" max="{{ remaining }}" required class="field" placeholder="{{ remaining }}">
+        </div>
+        <input name="vehicle" type="text" class="field" placeholder="{{ t('vehicle') }}" aria-label="{{ t('vehicle') }}">
+        <input name="lrNo" type="text" class="field" placeholder="{{ t('lrNo') }}" aria-label="{{ t('lrNo') }}">
+        <div class="full">
+          <button class="btn primary">{{ t('dispatchNow') }}</button>
+        </div>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+
+{% if dispatches %}
+<section class="card">
+  <div class="card-head">{{ t('recentDispatches') }}</div>
+  <ul class="rows">
+    {% for row in dispatches %}
+    <li class="row-flex">
+      <div>
+        <div class="row-title">{{ row.order_no }} · {{ row.customer }}</div>
+        <div class="row-sub">{{ fmt(row.qty) }} {{ t('pieces') }}{% if row.vehicle %} · {{ row.vehicle }}{% endif %} · {{ row.created_at[:16] }}</div>
+      </div>
+      <a class="btn outline-green" href="{{ notes[row.id] }}" target="_blank" rel="noopener noreferrer">{{ t('shareNote') }}</a>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% endblock %}

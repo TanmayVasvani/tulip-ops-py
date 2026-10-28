@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="card">
+  <div class="card-head">{{ t('rawMaterials') }}</div>
+  <ul class="rows">
+    {% for m in materials %}
+    {% set is_low = m.current_qty <= m.reorder_level %}
+    <li>
+      <div class="row-flex">
+        <div>
+          <div class="row-title">{{ pick(m.name_en, m.name_gu) }}</div>
+          <div class="row-sub" style="text-transform:uppercase;font-size:0.72rem;font-weight:700;letter-spacing:0.04em">
+            {{ t('reorderLevel') }}: {{ '%g'|format(m.reorder_level) }} {{ m.unit }}
+          </div>
+        </div>
+        <div style="text-align:right">
+          <span class="bignum" style="font-size:1.4rem;{{ 'color:var(--accent)' if is_low else '' }}">{{ '%g'|format(m.current_qty) }}</span>
+          <span style="font-size:0.85rem;font-weight:700;color:var(--mut)"> {{ m.unit }}</span>
+          {% if is_low %}<div class="pill red" style="display:inline-block;margin-top:2px;font-size:0.72rem">{{ t('low') }}</div>{% endif %}
+        </div>
+      </div>
+      <form method="post" action="/stock/move" class="inline-form">
+        <input type="hidden" name="materialId" value="{{ m.id }}">
+        <input name="qty" type="number" inputmode="decimal" min="0.1" step="any" required class="field"
+               placeholder="{{ t('qty') }} ({{ m.unit }})" aria-label="{{ t('qty') }} — {{ pick(m.name_en, m.name_gu) }}">
+        <button name="type" value="in" class="btn green">{{ t('stockIn') }}</button>
+        <button name="type" value="out" class="btn">{{ t('stockOut') }}</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="card">
+  <div class="card-head">{{ t('finishedGoods') }}</div>
+  <ul class="rows">
+    {% for p in products %}
+    <li class="row-flex">
+      <div>
+        <div class="row-title">{{ p.sku }}</div>
+        <div class="row-sub">{{ pick(p.name_en, p.name_gu) }}</div>
+      </div>
+      <span class="bignum" style="font-size:1.4rem">{{ fmt(p.stock_qty) }} <span style="font-size:0.85rem;font-weight:700;color:var(--mut)">{{ t('pieces') }}</span></span>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+
+{% endblock %}
