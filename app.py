@@ -1,6 +1,10 @@
 """Tulip Ops. Run: python app.py  (serves on 0.0.0.0:3000)"""
 from datetime import datetime
+import json
+import os
+import time
 from urllib.parse import quote
+import urllib.request
 
 from flask import Flask, g, redirect, render_template, request, make_response
 
@@ -8,6 +12,9 @@ import db as d
 from i18n import DEFECTS, make_t, pick_name
 
 app = Flask(__name__)
+
+VISION_URL = os.environ.get("VISION_URL", "http://127.0.0.1:8600").rstrip("/")
+_vision_cache = {"at": 0.0, "data": None}
 
 
 # ---------- per-request plumbing ----------
@@ -50,6 +57,33 @@ def form_id(name):
     return v if v > 0 else None
 
 
+def vision_stats():
+    """Today's numbers from the Tulip Vision station. None if not configured.
+
+    A down station returns {"offline": True} and is cached briefly, so a
+    missing station never stalls the dashboard.
+    """
+    if not VISION_URL:
+        return None
+    now = time.monotonic()
+    if now - _vision_cache["at"] < 15:
+        return _vision_cache["data"]
+    data = {"offline": True}
+    try:
+        req = urllib.request.Request(
+            VISION_URL + "/api/stats", headers={"Accept": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=0.6) as resp:
+            payload = json.loads(resp.read().decode())
+        if isinstance(payload, dict) and "inspections" in payload:
+            data = payload
+    except (OSError, ValueError, json.JSONDecodeError):
+        data = {"offline": True}
+    _vision_cache["at"] = now
+    _vision_cache["data"] = data
+    return data
+
+
 # ---------- pages ----------
 
 @app.get("/")
@@ -58,6 +92,7 @@ def dashboard():
     stats = d.get_today_stats(g.con)
     batches = d.get_active_batches(g.con)
     low = d.get_low_stock_materials(g.con)
+    vision = vision_stats()
     date_str = datetime.now().strftime("%d %b %Y")
 
     lines = [
@@ -68,13 +103,19 @@ def dashboard():
         f"{t('qcFailRate')}: {stats['qc_fail_pct']}% ({stats['qc_samples']} {t('samplesChecked')})",
         f"{t('activeBatches')}: {stats['active_batches']} | {t('pendingOrders')}: {stats['pending_orders']}",
     ]
+    if vision and not vision.get("offline"):
+        rate = round(vision.get("reject_rate", 0) * 100, 1)
+        lines.append(
+            f"{t('vision')}: {d.fmt_in(vision.get('inspections', 0))} {t('visionInspected')}, "
+            f"{d.fmt_in(vision.get('rejects', 0))} {t('visionRejects')} ({rate}%)"
+        )
     if low:
         names = ", ".join(pick_name(g.lang, m["name_en"], m["name_gu"]) for m in low)
         lines.append(f"⚠️ {t('lowStockItems')}: {names}")
     wa_href = "https://wa.me/?text=" + quote("\n".join(lines))
 
     return render_template("dashboard.html", stats=stats, batches=batches,
-                           low=low, date_str=date_str, wa_href=wa_href)
+                           low=low, vision=vision, date_str=date_str, wa_href=wa_href)
 
 
 @app.get("/production")

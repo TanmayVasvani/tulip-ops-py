@@ -96,6 +96,13 @@ DICT = {
     "partial": {"gu": "અધૂરું", "en": "Partial"},
     "pending": {"gu": "બાકી", "en": "Pending"},
     "language": {"gu": "ભાષા", "en": "Language"},
+
+    "vision": {"gu": "વિઝન", "en": "Vision"},
+    "visionInspected": {"gu": "આજે તપાસ્યા", "en": "Inspected today"},
+    "visionRejects": {"gu": "ખરાબ", "en": "Rejects"},
+    "visionAgreement": {"gu": "મોડલ–ઓપરેટર", "en": "Model–operator"},
+    "visionUnrecognised": {"gu": "ઓળખાયું નથી", "en": "Not recognised"},
+    "visionOffline": {"gu": "સ્ટેશન જોડાયું નથી", "en": "Station not reachable"},
 }
 
 DEFECTS = ["shortShot", "flash", "sinkMark", "looseBristle", "missingTuft",

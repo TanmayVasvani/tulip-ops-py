@@ -10,6 +10,11 @@ python seed.py       # loads demo data; skips if data already exists
 python app.py        # serves on 0.0.0.0:3000
 ```
 
+If Tulip Vision is running on the same laptop, the dashboard reads today's
+inspections from `http://127.0.0.1:8600`. Set `VISION_URL` to point elsewhere,
+or `VISION_URL=` to turn the card off. A station that is down does not
+block the page.
+
 No build step. Find the laptop's LAN IP (`ipconfig` / `ifconfig`), connect workers' phones to the factory WiFi, and open `http://<laptop-ip>:3000` in Chrome. Add to Home Screen for an app-like feel.
 
 Reset data: delete `data/factory.db*` and re-run `python seed.py`.

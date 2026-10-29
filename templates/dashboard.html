@@ -37,6 +37,34 @@
   </a>
 </section>
 
+{% if vision %}
+<section class="card">
+  <div class="card-head">{{ t('vision') }}</div>
+  {% if vision.offline %}
+  <p class="empty">{{ t('visionOffline') }}</p>
+  {% else %}
+  <div class="stat-grid" style="padding:12px">
+    <div class="stat">
+      <div class="bignum n">{{ fmt(vision.inspections) }}</div>
+      <div class="l">{{ t('visionInspected') }}</div>
+    </div>
+    <div class="stat {{ 'alert' if vision.reject_rate > 0.05 else '' }}">
+      <div class="bignum n">{{ vision.rejects }}</div>
+      <div class="l">{{ t('visionRejects') }} · {{ '%.1f'|format(vision.reject_rate * 100) }}%</div>
+    </div>
+    <div class="stat">
+      <div class="bignum n">{% if vision.model_operator_agreement is not none %}{{ '%.0f'|format(vision.model_operator_agreement * 100) }}%{% else %}—{% endif %}</div>
+      <div class="l">{{ t('visionAgreement') }}</div>
+    </div>
+    <div class="stat">
+      <div class="bignum n">{{ vision.unrecognised }}</div>
+      <div class="l">{{ t('visionUnrecognised') }}</div>
+    </div>
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+
 <a class="btn green" href="{{ wa_href }}" target="_blank" rel="noopener noreferrer">{{ t('shareOnWhatsApp') }}</a>
 
 {% if batches %}
