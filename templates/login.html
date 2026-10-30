@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <div class="card-head inverse">{{ t('login') }}</div>
+  <form method="post" action="/login" class="form-grid">
+    {% if error %}<p class="full empty">{{ t('badPin') }}</p>{% endif %}
+    <div class="full">
+      <label for="name">{{ t('worker') }}</label>
+      <input id="name" name="name" required class="field" autocomplete="username">
+    </div>
+    <div class="full">
+      <label for="pin">{{ t('pin') }}</label>
+      <input id="pin" name="pin" type="password" inputmode="numeric" required class="field" autocomplete="current-password">
+    </div>
+    <div class="full"><button class="btn primary">{{ t('login') }}</button></div>
+  </form>
+</section>
+{% endblock %}

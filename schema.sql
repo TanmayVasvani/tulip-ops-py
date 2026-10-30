@@ -82,3 +82,33 @@ CREATE TABLE IF NOT EXISTS dispatches (
   lr_no TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  pin_hash TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('worker','supervisor')),
+  worker_id INTEGER REFERENCES workers(id),
+  active INTEGER NOT NULL DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS bom (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL REFERENCES products(id),
+  material_id INTEGER NOT NULL REFERENCES materials(id),
+  qty_per_1000 REAL NOT NULL,
+  UNIQUE (product_id, material_id)
+);
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS invoices (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  invoice_no TEXT NOT NULL UNIQUE,
+  dispatch_id INTEGER NOT NULL UNIQUE REFERENCES dispatches(id),
+  taxable REAL NOT NULL,
+  cgst REAL NOT NULL,
+  sgst REAL NOT NULL,
+  igst REAL NOT NULL,
+  total REAL NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);

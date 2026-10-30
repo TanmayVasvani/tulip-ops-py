@@ -15,6 +15,11 @@
         <button name="lang" value="gu" class="{{ 'on' if lang == 'gu' else '' }}">ગુજરાતી</button>
         <button name="lang" value="en" class="{{ 'on' if lang == 'en' else '' }}">EN</button>
       </form>
+      {% if user %}
+      <form method="post" action="/logout">
+        <button class="btn auto" style="min-height:36px;width:auto;padding:4px 10px">{{ user.name }} · {{ t('logout') }}</button>
+      </form>
+      {% endif %}
     </div>
   </header>
 

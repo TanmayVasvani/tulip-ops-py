@@ -23,8 +23,10 @@ Reset data: delete `data/factory.db*` and re-run `python seed.py`.
 
 - **Production** — batches flow Molding → Tufting → Trimming → Packing. Each work session logs good qty + scrap against a machine, worker, and shift. Logging good qty at Packing automatically adds to finished-goods stock. "Move to next stage" is an explicit supervisor action.
 - **QC** — sample checks against any active batch at its current stage, with toothbrush-specific defect types (short shot, loose bristles, sharp ends…) and a three-way decision: Pass / Rework / Reject.
-- **Stock** — raw materials with reorder levels (low-stock flags surface on the dashboard) and live finished-goods counts. Material consumption is logged manually.
-- **Dispatch** — orders → partial or full dispatches with vehicle/LR number. Dispatching decrements finished stock and updates order status. Every dispatch generates a WhatsApp-shareable note; the dashboard generates a daily production report the same way (wa.me links — no API, no cost).
+- **Stock** — raw materials with reorder levels (low-stock flags surface on the dashboard) and live finished-goods counts. A supervisor can set a BOM per SKU; packing then consumes raw stock per 1,000 pieces.
+- **Dispatch** — orders → partial or full dispatches with vehicle/LR number. Dispatching decrements finished stock, updates order status, and writes a GST invoice (CGST/SGST in-state, IGST otherwise). Every dispatch generates a WhatsApp-shareable note; the dashboard generates a daily production report the same way (wa.me links — no API, no cost).
+- **Login** — name and PIN. No users yet means the floor stays open; the first supervisor is created at `/setup`. Demo: Tanmay / 1234, workers / 1111.
+- **Reports** — production, QC, stock and dispatch for a date range, as CSV or PDF. Supervisor only.
 
 ## Stack
 

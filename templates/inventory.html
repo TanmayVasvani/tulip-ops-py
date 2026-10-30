@@ -47,4 +47,30 @@
   </ul>
 </section>
 
+{% if is_supervisor %}
+<section class="card">
+  <div class="card-head">{{ t('bom') }} · {{ t('per1000') }}</div>
+  <form method="post" action="/bom" class="form-grid">
+    <div>
+      <label>{{ t('product') }}</label>
+      <select name="productId" class="field">{% for p in products %}<option value="{{ p.id }}">{{ p.sku }}</option>{% endfor %}</select>
+    </div>
+    <div>
+      <label>{{ t('rawMaterials') }}</label>
+      <select name="materialId" class="field">{% for m in materials %}<option value="{{ m.id }}">{{ pick(m.name_en, m.name_gu) }}</option>{% endfor %}</select>
+    </div>
+    <div>
+      <label>{{ t('qty') }}</label>
+      <input name="qtyPer1000" type="number" step="any" min="0" class="field" placeholder="8">
+    </div>
+    <div class="full"><button class="btn primary">{{ t('save') }}</button></div>
+  </form>
+  <ul class="rows">
+    {% for line in bom %}
+    <li class="row-flex"><span>{{ line.sku }} · {{ pick(line.name_en, line.name_gu) }}</span><span>{{ '%g'|format(line.qty_per_1000) }} {{ line.unit }}</span></li>
+    {% else %}<li class="empty">—</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 {% endblock %}

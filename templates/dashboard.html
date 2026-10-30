@@ -67,6 +67,13 @@
 
 <a class="btn green" href="{{ wa_href }}" target="_blank" rel="noopener noreferrer">{{ t('shareOnWhatsApp') }}</a>
 
+{% if is_supervisor %}
+<section class="stat-grid">
+  <a class="card stat" href="/reports"><div class="l">{{ t('reports') }}</div></a>
+  <a class="card stat" href="/settings"><div class="l">{{ t('settings') }}</div></a>
+</section>
+{% endif %}
+
 {% if batches %}
 <section class="card">
   <div class="card-head">{{ t('activeBatches') }}</div>

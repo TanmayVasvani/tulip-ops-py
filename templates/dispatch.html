@@ -9,6 +9,14 @@
       <input id="o-cust" name="customer" type="text" required class="field">
     </div>
     <div>
+      <label for="o-gstin">{{ t('gstin') }}</label>
+      <input id="o-gstin" name="gstin" type="text" class="field">
+    </div>
+    <div>
+      <label for="o-state">{{ t('stateCode') }}</label>
+      <input id="o-state" name="state" type="text" class="field" placeholder="24" value="24">
+    </div>
+    <div>
       <label for="o-prod">{{ t('product') }}</label>
       <select id="o-prod" name="productId" required class="field">
         {% for p in products %}
@@ -71,6 +79,9 @@
         <div class="row-sub">{{ fmt(row.qty) }} {{ t('pieces') }}{% if row.vehicle %} · {{ row.vehicle }}{% endif %} · {{ row.created_at[:16] }}</div>
       </div>
       <a class="btn outline-green" href="{{ notes[row.id] }}" target="_blank" rel="noopener noreferrer">{{ t('shareNote') }}</a>
+      {% if invoices[row.id] %}
+      <a class="btn outline-green" href="/invoice/{{ row.id }}">{{ invoices[row.id].invoice_no }}</a>
+      {% endif %}
     </li>
     {% endfor %}
   </ul>

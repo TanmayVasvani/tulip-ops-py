@@ -3,6 +3,8 @@ import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from db import hash_pin
+
 BASE = Path(__file__).resolve().parent
 (BASE / "data").mkdir(exist_ok=True)
 con = sqlite3.connect(BASE / "data" / "factory.db")
@@ -16,10 +18,10 @@ if con.execute("SELECT COUNT(*) FROM products").fetchone()[0] > 0:
 ago = lambda h: (datetime.now() - timedelta(hours=h)).strftime("%Y-%m-%d %H:%M:%S")
 
 with con:
-    con.executemany("INSERT INTO products (sku, name_en, name_gu, stock_qty) VALUES (?,?,?,?)", [
-        ("ZEC-PRO-S", "Zecta Pro Soft", "\u0a9d\u0ac7\u0a95\u0acd\u0a9f\u0abe \u0aaa\u0acd\u0ab0\u0acb \u0ab8\u0acb\u0aab\u0acd\u0a9f", 4200),
-        ("ZEC-KID", "Zecta Kids", "\u0a9d\u0ac7\u0a95\u0acd\u0a9f\u0abe \u0a95\u0abf\u0aa1\u0acd\u0ab8", 1800),
-        ("TUL-CLA-M", "Tulip Classic Medium", "\u0aa4\u0ac1\u0ab2\u0abf\u0aaa \u0a95\u0acd\u0ab2\u0abe\u0ab8\u0abf\u0a95 \u0aae\u0ac0\u0aa1\u0abf\u0aaf\u0aae", 9500),
+    con.executemany("INSERT INTO products (sku, name_en, name_gu, stock_qty, hsn, rate, gst_rate) VALUES (?,?,?,?,?,?,?)", [
+        ("ZEC-PRO-S", "Zecta Pro Soft", "\u0a9d\u0ac7\u0a95\u0acd\u0a9f\u0abe \u0aaa\u0acd\u0ab0\u0acb \u0ab8\u0acb\u0aab\u0acd\u0a9f", 4200, "96032100", 18, 18),
+        ("ZEC-KID", "Zecta Kids", "\u0a9d\u0ac7\u0a95\u0acd\u0a9f\u0abe \u0a95\u0abf\u0aa1\u0acd\u0ab8", 1800, "96032100", 12, 18),
+        ("TUL-CLA-M", "Tulip Classic Medium", "\u0aa4\u0ac1\u0ab2\u0abf\u0aaa \u0a95\u0acd\u0ab2\u0abe\u0ab8\u0abf\u0a95 \u0aae\u0ac0\u0aa1\u0abf\u0aaf\u0aae", 9500, "96032100", 10, 18),
     ])
     con.executemany("INSERT INTO machines (code, stage) VALUES (?,?)", [
         ("IM-01", "molding"), ("IM-02", "molding"),
@@ -70,5 +72,23 @@ with con:
     ])
     con.execute("INSERT INTO dispatches (order_id, qty, vehicle, lr_no, created_at) VALUES (?,?,?,?,?)",
                 (1, 8000, "GJ-06-XT-4521", "LR-88213", ago(30)))
+    con.executemany("INSERT INTO settings (key, value) VALUES (?,?)", [
+        ("company", "Tulip Enterprise"),
+        ("gstin", "24AAAAA0000A1Z5"),
+        ("address", "Vadodara, Gujarat"),
+        ("state_code", "24"),
+    ])
+    con.execute("INSERT INTO users (name, pin_hash, role) VALUES (?,?,?)",
+                ("Tanmay", hash_pin("1234"), "supervisor"))
+    for wid, name in con.execute("SELECT id, name FROM workers"):
+        con.execute("INSERT INTO users (name, pin_hash, role, worker_id) VALUES (?,?,?,?)",
+                    (name, hash_pin("1111"), "worker", wid))
+    # per 1,000 brushes
+    recipe = [(1, 8), (2, 1.2), (3, 0.15), (4, 0.4), (5, 40), (6, 4)]
+    for pid in (1, 2, 3):
+        con.executemany(
+            "INSERT INTO bom (product_id, material_id, qty_per_1000) VALUES (?,?,?)",
+            [(pid, mid, qty) for mid, qty in recipe],
+        )
 
 print("Seeded: 3 products, 6 machines, 8 workers, 6 materials, 4 batches, 4 QC checks, 2 orders, 1 dispatch.")

@@ -1,17 +1,21 @@
 """Tulip Ops. Run: python app.py  (serves on 0.0.0.0:3000)"""
-from datetime import datetime
+from datetime import datetime, date
+import csv
+import io
 import json
 import os
 import time
 from urllib.parse import quote
 import urllib.request
 
-from flask import Flask, g, redirect, render_template, request, make_response
+from flask import Flask, g, redirect, render_template, request, make_response, session, Response
 
 import db as d
 from i18n import DEFECTS, make_t, pick_name
+from pdf import text_pdf
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("TULIP_SECRET", "tulip-ops-lan")
 
 VISION_URL = os.environ.get("VISION_URL", "http://127.0.0.1:8600").rstrip("/")
 _vision_cache = {"at": 0.0, "data": None}
@@ -23,6 +27,16 @@ _vision_cache = {"at": 0.0, "data": None}
 def before():
     g.con = d.get_db()
     g.lang = "en" if request.cookies.get("lang") == "en" else "gu"
+    g.user = d.get_user(g.con, session.get("uid"))
+    open_paths = {"/login", "/setup", "/lang"}
+    if request.path.startswith("/static") or request.path in open_paths:
+        return
+    if d.user_count(g.con) and not g.user:
+        return redirect("/login")
+
+
+def supervisor():
+    return g.user and g.user["role"] == "supervisor"
 
 
 @app.teardown_request
@@ -42,6 +56,8 @@ def inject():
         "STAGES": d.STAGES,
         "DEFECTS": DEFECTS,
         "path": request.path,
+        "user": getattr(g, "user", None),
+        "is_supervisor": bool(getattr(g, "user", None) and g.user["role"] == "supervisor"),
     }
 
 
@@ -144,7 +160,8 @@ def qc():
 def inventory():
     return render_template("inventory.html",
                            materials=d.get_materials(g.con),
-                           products=d.get_products(g.con))
+                           products=d.get_products(g.con),
+                           bom=d.get_bom(g.con))
 
 
 @app.get("/dispatch")
@@ -165,10 +182,14 @@ def dispatch():
             lines.append(f"{t('lrNo')}: {row['lr_no']}")
         lines.append(row["created_at"])
         notes[row["id"]] = "https://wa.me/?text=" + quote("\n".join(lines))
+    invoices = {
+        row["id"]: d.get_invoice(g.con, row["id"])
+        for row in dispatches
+    }
     return render_template("dispatch.html",
                            products=d.get_products(g.con),
                            orders=d.get_open_orders(g.con),
-                           dispatches=dispatches, notes=notes)
+                           dispatches=dispatches, notes=notes, invoices=invoices)
 
 
 # ---------- actions ----------
@@ -248,7 +269,9 @@ def order_new():
     customer = (request.form.get("customer") or "").strip()
     pid, qty = form_id("productId"), form_int("qty")
     if customer and pid and qty > 0:
-        d.create_order(g.con, customer, pid, qty)
+        gstin = (request.form.get("gstin") or "").strip() or None
+        state = (request.form.get("state") or "").strip() or None
+        d.create_order(g.con, customer, pid, qty, gstin, state)
     return redirect("/dispatch")
 
 
@@ -260,6 +283,221 @@ def dispatch_new():
         lr_no = (request.form.get("lrNo") or "").strip() or None
         d.create_dispatch(g.con, oid, qty, vehicle, lr_no)
     return redirect("/dispatch")
+
+
+@app.get("/login")
+def login():
+    if g.user:
+        return redirect("/")
+    return render_template("login.html", error=None)
+
+
+@app.post("/login")
+def login_post():
+    user = d.find_user(g.con, request.form.get("name", ""), request.form.get("pin", ""))
+    if not user:
+        return render_template("login.html", error=True)
+    session["uid"] = user["id"]
+    return redirect("/")
+
+
+@app.post("/logout")
+def logout():
+    session.clear()
+    return redirect("/login")
+
+
+@app.get("/setup")
+def setup():
+    if d.user_count(g.con):
+        return redirect("/login")
+    return render_template("setup.html")
+
+
+@app.post("/setup")
+def setup_post():
+    if d.user_count(g.con):
+        return redirect("/login")
+    name = (request.form.get("name") or "").strip()
+    pin = (request.form.get("pin") or "").strip()
+    if name and pin.isdigit() and len(pin) >= 4:
+        with g.con:
+            g.con.execute(
+                "INSERT INTO users (name, pin_hash, role) VALUES (?,?,?)",
+                (name, d.hash_pin(pin), "supervisor"),
+            )
+        return redirect("/login")
+    return render_template("setup.html")
+
+
+@app.get("/settings")
+def settings():
+    if not supervisor():
+        return redirect("/")
+    keys = ("company", "gstin", "address", "state_code")
+    current = {k: d.get_setting(g.con, k, "24" if k == "state_code" else "") for k in keys}
+    return render_template("settings.html", current=current, products=d.get_products(g.con))
+
+
+@app.post("/settings")
+def settings_post():
+    if not supervisor():
+        return redirect("/")
+    for key in ("company", "gstin", "address", "state_code"):
+        d.set_setting(g.con, key, (request.form.get(key) or "").strip())
+    return redirect("/settings")
+
+
+@app.post("/product/rate")
+def product_rate():
+    if not supervisor():
+        return redirect("/")
+    pid = form_id("productId")
+    if pid:
+        try:
+            rate = float(request.form.get("rate") or 0)
+            gst = float(request.form.get("gstRate") or 18)
+        except ValueError:
+            rate, gst = 0, 18
+        hsn = (request.form.get("hsn") or "").strip() or None
+        with g.con:
+            g.con.execute(
+                "UPDATE products SET rate=?, gst_rate=?, hsn=? WHERE id=?",
+                (rate, gst, hsn, pid),
+            )
+    return redirect("/settings")
+
+
+@app.post("/bom")
+def bom_save():
+    if not supervisor():
+        return redirect("/")
+    pid, mid = form_id("productId"), form_id("materialId")
+    try:
+        qty = float(request.form.get("qtyPer1000") or 0)
+    except ValueError:
+        qty = 0
+    if pid and mid:
+        d.set_bom_line(g.con, pid, mid, qty)
+    return redirect("/inventory")
+
+
+@app.get("/invoice/<int:dispatch_id>")
+def invoice(dispatch_id):
+    row = d.get_invoice(g.con, dispatch_id)
+    if not row:
+        return redirect("/dispatch")
+    company = {
+        "name": d.get_setting(g.con, "company", "Tulip Enterprise"),
+        "gstin": d.get_setting(g.con, "gstin", ""),
+        "address": d.get_setting(g.con, "address", "Vadodara, Gujarat"),
+        "state": d.get_setting(g.con, "state_code", "24"),
+    }
+    return render_template("invoice.html", inv=row, company=company)
+
+
+@app.get("/invoice/<int:dispatch_id>.pdf")
+def invoice_pdf(dispatch_id):
+    row = d.get_invoice(g.con, dispatch_id)
+    if not row:
+        return redirect("/dispatch")
+    lines = [
+        d.get_setting(g.con, "company", "Tulip Enterprise"),
+        d.get_setting(g.con, "address", "Vadodara, Gujarat"),
+        "GSTIN " + d.get_setting(g.con, "gstin", "-"),
+        "",
+        f"Tax invoice {row['invoice_no']}",
+        f"Order {row['order_no']}  {row['dispatched_at']}",
+        f"Customer: {row['customer']}",
+        f"Customer GSTIN: {row['customer_gstin'] or '-'}",
+        "",
+        f"{row['sku']}  HSN {row['hsn'] or '-'}",
+        f"Qty {row['qty']}  Rate {row['rate']:.2f}  GST {row['gst_rate']:.0f}%",
+        f"Taxable {row['taxable']:.2f}",
+        f"CGST {row['cgst']:.2f}  SGST {row['sgst']:.2f}  IGST {row['igst']:.2f}",
+        f"Total {row['total']:.2f}",
+    ]
+    body = text_pdf(lines)
+    return Response(body, mimetype="application/pdf",
+                    headers={"Content-Disposition": f"inline; filename={row['invoice_no']}.pdf"})
+
+
+def _dates():
+    today = date.today().isoformat()
+    start = request.args.get("from") or today
+    end = request.args.get("to") or today
+    return start, end
+
+
+@app.get("/reports")
+def reports():
+    if not supervisor():
+        return redirect("/")
+    start, end = _dates()
+    return render_template(
+        "reports.html", start=start, end=end,
+        production=d.report_production(g.con, start, end),
+        qc=d.report_qc(g.con, start, end),
+        stock=d.report_stock(g.con, start, end),
+        dispatch=d.report_dispatch(g.con, start, end),
+    )
+
+
+def _csv(name, header, rows):
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(header)
+    writer.writerows(rows)
+    return Response(
+        buf.getvalue(), mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={name}.csv"},
+    )
+
+
+@app.get("/reports/<kind>.csv")
+def report_csv(kind):
+    if not supervisor():
+        return redirect("/")
+    start, end = _dates()
+    if kind == "production":
+        rows = d.report_production(g.con, start, end)
+        return _csv("production", ["day", "stage", "qty_ok", "qty_scrap"],
+                    [(r["day"], r["stage"], r["qty_ok"], r["qty_scrap"]) for r in rows])
+    if kind == "qc":
+        rows = d.report_qc(g.con, start, end)
+        return _csv("qc", ["day", "stage", "action", "samples", "failed"],
+                    [(r["day"], r["stage"], r["action"], r["samples"], r["failed"]) for r in rows])
+    if kind == "stock":
+        rows = d.report_stock(g.con, start, end)
+        return _csv("stock", ["day", "material", "unit", "type", "qty"],
+                    [(r["day"], r["name_en"], r["unit"], r["type"], r["qty"]) for r in rows])
+    if kind == "dispatch":
+        rows = d.report_dispatch(g.con, start, end)
+        return _csv("dispatch", ["day", "order", "customer", "sku", "qty", "invoice", "total"],
+                    [(r["day"], r["order_no"], r["customer"], r["sku"], r["qty"], r["invoice_no"], r["total"]) for r in rows])
+    return redirect("/reports")
+
+
+@app.get("/reports.pdf")
+def reports_pdf():
+    if not supervisor():
+        return redirect("/")
+    start, end = _dates()
+    lines = [f"Tulip Ops  {start} to {end}", ""]
+    lines.append("Production")
+    for r in d.report_production(g.con, start, end):
+        lines.append(f"  {r['day']}  {r['stage']}  ok {r['qty_ok']}  scrap {r['qty_scrap']}")
+    lines.append("")
+    lines.append("QC")
+    for r in d.report_qc(g.con, start, end):
+        lines.append(f"  {r['day']}  {r['stage']}  {r['action']}  {r['failed']}/{r['samples']}")
+    lines.append("")
+    lines.append("Dispatch")
+    for r in d.report_dispatch(g.con, start, end):
+        lines.append(f"  {r['day']}  {r['order_no']}  {r['sku']}  {r['qty']}  {r['invoice_no'] or '-'}")
+    body = text_pdf(lines)
+    return Response(body, mimetype="application/pdf",
+                    headers={"Content-Disposition": "inline; filename=report.pdf"})
 
 
 if __name__ == "__main__":
