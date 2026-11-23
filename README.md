@@ -1,6 +1,10 @@
 # Tulip Ops
 
-Factory operations for Tulip Enterprise / Zecta: production tracking, QC, raw-material stock, finished goods, and dispatch. Gujarati-first UI with an English toggle. Runs entirely on the factory LAN — no internet needed after install.
+Factory operations for Tulip Enterprise: production tracking, QC, raw-material stock, finished goods, and dispatch. Gujarati-first UI with an English toggle. Runs entirely on the factory LAN — no internet needed after install.
+
+## Status
+
+Tulip Ops is in use at Tulip Enterprise. The data loaded by `seed.py` is demo data, and the factory's own records are private.
 
 ## Run it (factory laptop)
 
